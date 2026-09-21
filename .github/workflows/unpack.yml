@@ -18,7 +18,7 @@ jobs:
         run: |
           unzip -o family_quest_render_source_v2.zip
           rm family_quest_render_source_v2.zip
-          rm .github/workflows/unpack.yml
+          rm -rf .github
       - name: Commit application files
         run: |
           git config user.name github-actions
