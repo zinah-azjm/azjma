@@ -27,6 +27,7 @@ putenv("APP_PACKAGES_CACHE={$runtime}/packages.php");
 putenv("APP_CONFIG_CACHE={$runtime}/config.php");
 putenv("APP_ROUTES_CACHE={$runtime}/routes.php");
 putenv("APP_EVENTS_CACHE={$runtime}/events.php");
+putenv('LOG_CHANNEL=stderr');
 
 require __DIR__.'/../vendor/autoload.php';
 
