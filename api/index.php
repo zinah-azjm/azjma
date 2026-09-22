@@ -5,6 +5,9 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 $requestPath = parse_url($requestUri, PHP_URL_PATH) ?: '/';
 if ($requestPath !== '/up' && ! str_starts_with($requestPath, '/api/')) {
