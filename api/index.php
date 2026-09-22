@@ -28,7 +28,7 @@ putenv("APP_CONFIG_CACHE={$runtime}/config.php");
 putenv("APP_ROUTES_CACHE={$runtime}/routes.php");
 putenv("APP_EVENTS_CACHE={$runtime}/events.php");
 putenv('LOG_CHANNEL=stderr');
-putenv('APP_DEBUG=true');
+putenv('HASH_DRIVER=argon2id');
 
 require __DIR__.'/../vendor/autoload.php';
 
