@@ -34,7 +34,7 @@
     },
     "scripts": {
         "vercel": [
-            "@php artisan migrate:fresh --force"
+            "@php artisan migrate --force"
         ],
         "setup": [
             "composer install",
