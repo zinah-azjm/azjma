@@ -21,7 +21,8 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:8'],
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        try {
+            $user = DB::transaction(function () use ($data) {
             $familyId = DB::table('families')->insertGetId([
                 'name' => $data['family_name'],
                 'code' => strtoupper(Str::random(6)),
@@ -51,7 +52,11 @@ class AuthController extends Controller
                 'email' => $data['email'],
                 'password' => $data['password'],
             ]);
-        });
+            });
+        } catch (\Throwable $exception) {
+            error_log('REGISTER_ERROR: '.$exception->getMessage());
+            throw $exception;
+        }
 
         $user->setAttribute('family_code', DB::table('families')->where('id', $user->family_id)->value('code'));
         return response()->json([
