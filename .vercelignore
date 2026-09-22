@@ -1,0 +1,10 @@
+.env
+.env.*
+.git
+.github
+node_modules
+tests
+Dockerfile
+docker
+deploy
+render.yaml
