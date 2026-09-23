@@ -17,9 +17,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/children', [QuestController::class, 'createChild']);
     Route::put('/children/{id}', [QuestController::class, 'updateChild']);
     Route::delete('/children/{id}', [QuestController::class, 'deleteChild']);
+    Route::post('/children/{id}/points/deduct', [QuestController::class, 'deductPoints']);
     Route::post('/parents', [QuestController::class, 'createParent']);
     Route::get('/tasks', [QuestController::class, 'tasks']);
     Route::post('/tasks', [QuestController::class, 'createTask']);
+    Route::delete('/tasks/{id}', [QuestController::class, 'deleteTask']);
     Route::post('/tasks/{id}/submit', [QuestController::class, 'submitTask']);
     Route::post('/tasks/{id}/approve', [QuestController::class, 'approveTask']);
     Route::post('/tasks/{id}/reject', [QuestController::class, 'rejectTask']);

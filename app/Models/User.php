@@ -21,11 +21,14 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'family_id',
         'role',
         'points',
+        'task_points',
+        'game_points',
         'age',
         'avatar',
         'pin',
@@ -53,6 +56,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'points' => 'integer',
+            'task_points' => 'integer',
+            'game_points' => 'integer',
             'pin' => 'hashed',
         ];
     }

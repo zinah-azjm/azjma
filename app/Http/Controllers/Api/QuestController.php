@@ -53,6 +53,11 @@ class QuestController extends Controller
     private function addPoints(int $userId, int $familyId, int $amount, string $type, string $description, ?string $referenceKey = null): void
     {
         DB::table('users')->where('id', $userId)->increment('points', $amount);
+        if ($type === 'task') {
+            DB::table('users')->where('id', $userId)->increment('task_points', $amount);
+        } elseif ($type === 'game') {
+            DB::table('users')->where('id', $userId)->increment('game_points', $amount);
+        }
         DB::table('point_transactions')->insert([
             'user_id' => $userId,
             'family_id' => $familyId,
@@ -86,12 +91,13 @@ class QuestController extends Controller
         $this->parent($request);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'username' => ['required', 'string', 'min:3', 'max:50', 'alpha_dash', 'unique:users,username'],
             'password' => ['required', 'string', 'min:8'],
             'age' => ['nullable', 'integer', 'between:3,17'],
             'avatar' => ['nullable', 'string', 'max:30'],
             'pin' => ['nullable', 'digits:4'],
         ]);
+        $data['username'] = strtolower($data['username']);
         return response()->json(User::create($data + [
             'family_id' => $request->user()->family_id,
             'role' => 'child',
@@ -124,9 +130,10 @@ class QuestController extends Controller
         $this->parent($request);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'username' => ['required', 'string', 'min:3', 'max:50', 'alpha_dash', 'unique:users,username'],
             'password' => ['required', 'string', 'min:8'],
         ]);
+        $data['username'] = strtolower($data['username']);
         return response()->json(User::create($data + [
             'family_id' => $request->user()->family_id, 'role' => 'parent',
         ]), 201);
@@ -135,12 +142,53 @@ class QuestController extends Controller
     public function tasks(Request $request)
     {
         $query = DB::table('family_tasks')
-            ->where('family_id', $request->user()->family_id)
-            ->orderByDesc('id');
+            ->join('users as children', 'children.id', '=', 'family_tasks.child_id')
+            ->where('family_tasks.family_id', $request->user()->family_id)
+            ->select('family_tasks.*', 'children.name as child_name')
+            ->orderByDesc('family_tasks.id');
         if ($request->user()->role === 'child') {
             $query->where('child_id', $request->user()->id);
         }
         return $query->get();
+    }
+
+    public function deleteTask(Request $request, int $id)
+    {
+        $this->parent($request);
+        $task = DB::table('family_tasks')->where('id', $id)
+            ->where('family_id', $request->user()->family_id)->firstOrFail();
+        abort_if($task->status === 'approved', 422, 'لا يمكن إلغاء مهمة تم اعتماد نقاطها.');
+        DB::table('family_tasks')->where('id', $id)->delete();
+        return response()->noContent();
+    }
+
+    public function deductPoints(Request $request, int $id)
+    {
+        $this->parent($request);
+        $data = $request->validate([
+            'amount' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'max:200'],
+        ]);
+
+        return DB::transaction(function () use ($request, $id, $data) {
+            $child = User::whereKey($id)->where('family_id', $request->user()->family_id)
+                ->where('role', 'child')->lockForUpdate()->firstOrFail();
+            if ($data['amount'] > $child->points) {
+                throw ValidationException::withMessages(['amount' => 'لا يمكن خصم أكثر من رصيد الطفل.']);
+            }
+            DB::table('users')->where('id', $child->id)->decrement('points', $data['amount']);
+            DB::table('point_transactions')->insert([
+                'user_id' => $child->id,
+                'family_id' => $child->family_id,
+                'amount' => -$data['amount'],
+                'type' => 'deduction',
+                'description' => 'خصم من ولي الأمر: '.$data['reason'],
+                'reference_key' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            return $child->fresh();
+        });
     }
 
     public function createTask(Request $request)
@@ -402,6 +450,8 @@ class QuestController extends Controller
 
         return [
             'points' => $user->points,
+            'task_points' => $user->task_points,
+            'game_points' => $user->game_points,
             'level' => $level,
             'level_progress' => $user->points % 100,
             'next_level_points' => 100 - ($user->points % 100),

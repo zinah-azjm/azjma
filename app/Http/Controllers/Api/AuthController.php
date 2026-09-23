@@ -17,13 +17,13 @@ class AuthController extends Controller
         $data = $request->validate([
             'family_name' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'username' => ['required', 'string', 'min:3', 'max:50', 'alpha_dash', 'unique:users,username'],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
         try {
             $user = DB::transaction(function () use ($data) {
-            $familyId = DB::table('families')->insertGetId([
+                $familyId = DB::table('families')->insertGetId([
                 'name' => $data['family_name'],
                 'code' => strtoupper(Str::random(6)),
                 'created_at' => now(),
@@ -45,13 +45,13 @@ class AuthController extends Controller
                     'updated_at' => now(),
                 ],
             ]);
-            return User::create([
-                'family_id' => $familyId,
-                'role' => 'parent',
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => $data['password'],
-            ]);
+                return User::create([
+                    'family_id' => $familyId,
+                    'role' => 'parent',
+                    'name' => $data['name'],
+                    'username' => strtolower($data['username']),
+                    'password' => $data['password'],
+                ]);
             });
         } catch (\Throwable $exception) {
             error_log('REGISTER_ERROR: '.$exception->getMessage());
@@ -68,12 +68,15 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
+            'username' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
-        $user = User::where('email', $data['email'])->first();
+        $login = strtolower(trim($data['username']));
+        $user = User::where('username', $login)
+            ->orWhere('email', $data['username'])
+            ->first();
         if (!$user || !Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages(['email' => 'بيانات الدخول غير صحيحة.']);
+            throw ValidationException::withMessages(['username' => 'اسم المستخدم أو كلمة المرور غير صحيحة.']);
         }
         $user->setAttribute('family_code', DB::table('families')->where('id', $user->family_id)->value('code'));
         return [
