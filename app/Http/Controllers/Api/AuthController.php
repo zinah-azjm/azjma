@@ -21,8 +21,9 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:8'],
         ]);
 
+        $recoveryCode = strtoupper(Str::random(10));
         try {
-            $user = DB::transaction(function () use ($data) {
+            $user = DB::transaction(function () use ($data, $recoveryCode) {
                 $familyId = DB::table('families')->insertGetId([
                 'name' => $data['family_name'],
                 'code' => strtoupper(Str::random(6)),
@@ -51,6 +52,7 @@ class AuthController extends Controller
                     'name' => $data['name'],
                     'username' => strtolower($data['username']),
                     'password' => $data['password'],
+                    'recovery_code' => $recoveryCode,
                 ]);
             });
         } catch (\Throwable $exception) {
@@ -62,6 +64,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $user->createToken('mobile')->plainTextToken,
+            'recovery_code' => $recoveryCode,
         ], 201);
     }
 
@@ -123,6 +126,30 @@ class AuthController extends Controller
         ]);
         $request->user()->update(['password' => $data['password']]);
         return ['message' => 'تم تغيير كلمة المرور.'];
+    }
+
+    public function recover(Request $request)
+    {
+        $data = $request->validate([
+            'username' => ['required', 'string'],
+            'recovery_code' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+        $user = User::where('username', strtolower($data['username']))->first();
+        if (! $user || ! $user->recovery_code || ! Hash::check(strtoupper($data['recovery_code']), $user->recovery_code)) {
+            throw ValidationException::withMessages(['recovery_code' => 'رمز الاستعادة غير صحيح.']);
+        }
+        $user->update(['password' => $data['password']]);
+        $user->tokens()->delete();
+        return ['message' => 'تم تعيين كلمة المرور الجديدة.'];
+    }
+
+    public function regenerateRecoveryCode(Request $request)
+    {
+        abort_unless($request->user()->role === 'parent', 403);
+        $code = strtoupper(Str::random(10));
+        $request->user()->update(['recovery_code' => $code]);
+        return ['recovery_code' => $code];
     }
 
     public function logout(Request $request)

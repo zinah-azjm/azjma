@@ -32,6 +32,7 @@ class User extends Authenticatable
         'age',
         'avatar',
         'pin',
+        'recovery_code',
     ];
 
     /**
@@ -43,6 +44,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
         'pin',
+        'recovery_code',
     ];
 
     /**
@@ -59,6 +61,7 @@ class User extends Authenticatable
             'task_points' => 'integer',
             'game_points' => 'integer',
             'pin' => 'hashed',
+            'recovery_code' => 'hashed',
         ];
     }
 }

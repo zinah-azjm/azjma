@@ -231,6 +231,24 @@ class QuestController extends Controller
         return response()->json(DB::table('family_tasks')->find($id), 201);
     }
 
+    public function updateTask(Request $request, int $id)
+    {
+        $this->parent($request);
+        $task = DB::table('family_tasks')->where('id', $id)
+            ->where('family_id', $request->user()->family_id)->firstOrFail();
+        abort_if($task->status === 'approved', 422, 'لا يمكن تعديل مهمة مكتملة.');
+        $data = $request->validate([
+            'title' => ['sometimes', 'required', 'string', 'max:150'],
+            'points' => ['sometimes', 'required', 'integer', 'between:1,1000'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'category' => ['sometimes', 'in:home,study,health,faith'],
+            'repeat_type' => ['sometimes', 'in:once,daily,weekly'],
+            'due_time' => ['nullable', 'date_format:H:i'],
+        ]);
+        DB::table('family_tasks')->where('id', $id)->update($data + ['updated_at' => now()]);
+        return DB::table('family_tasks')->find($id);
+    }
+
     public function rejectTask(Request $request, int $id)
     {
         $this->parent($request);
@@ -265,7 +283,18 @@ class QuestController extends Controller
             ->where('status', 'open')
             ->update(['status' => 'pending', 'updated_at' => now()]);
         abort_unless($changed, 404);
-        return DB::table('family_tasks')->find($id);
+        $task = DB::table('family_tasks')->find($id);
+        User::where('family_id', $request->user()->family_id)->where('role', 'parent')
+            ->each(function ($parent) use ($request, $task) {
+                DB::table('app_notifications')->insert([
+                    'user_id' => $parent->id,
+                    'title' => 'مهمة تنتظر الموافقة ✅',
+                    'body' => $request->user()->name.' أنجز: '.$task->title,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            });
+        return $task;
     }
 
     public function approveTask(Request $request, int $id)
@@ -295,6 +324,18 @@ class QuestController extends Controller
             ]);
             return DB::table('family_tasks')->find($id);
         });
+    }
+
+    public function pointsHistory(Request $request, int $childId)
+    {
+        $child = User::whereKey($childId)->where('family_id', $request->user()->family_id)
+            ->where('role', 'child')->firstOrFail();
+        abort_unless($request->user()->role === 'parent' || $request->user()->id === $child->id, 403);
+        return [
+            'child' => $child->only(['id', 'name', 'points', 'task_points', 'game_points']),
+            'history' => DB::table('point_transactions')->where('user_id', $child->id)
+                ->orderByDesc('id')->limit(100)->get(),
+        ];
     }
 
     public function quiz(Request $request)
@@ -358,8 +399,11 @@ class QuestController extends Controller
 
         foreach ($categories as $key => &$category) {
             $category['key'] = $key;
+            $youngChild = ($request->user()->age ?? 8) < 8;
             $category['questions'] = collect($this->questionBank())
                 ->where('category', $key)
+                ->filter(fn ($question) => ! $youngChild || ($question['difficulty'] ?? 'easy') === 'easy')
+                ->shuffle()
                 ->map(function ($question) use ($completed, $today) {
                     unset($question['answer'], $question['category']);
                     $question['completed'] = in_array($question['key'].'_'.$today, $completed, true);
@@ -385,6 +429,12 @@ class QuestController extends Controller
         }
 
         return DB::transaction(function () use ($request, $question) {
+            $earnedToday = (int) DB::table('point_transactions')
+                ->where('user_id', $request->user()->id)
+                ->where('type', 'game')->whereDate('created_at', now()->toDateString())->sum('amount');
+            if ($earnedToday >= 100) {
+                throw ValidationException::withMessages(['points' => 'وصلت إلى الحد اليومي لنقاط الألعاب (100 نقطة).']);
+            }
             $attemptKey = $question['key'].'_'.now()->toDateString();
             $inserted = DB::table('quiz_attempts')->insertOrIgnore([
                 'child_id' => $request->user()->id,
@@ -393,10 +443,11 @@ class QuestController extends Controller
                 'updated_at' => now(),
             ]);
             if ($inserted) {
+                $award = min($question['points'], 100 - $earnedToday);
                 $this->addPoints(
                     $request->user()->id,
                     $request->user()->family_id,
-                    $question['points'],
+                    $award,
                     'game',
                     'إجابة صحيحة: '.$question['question'],
                     $attemptKey,
@@ -404,7 +455,7 @@ class QuestController extends Controller
             }
             return [
                 'correct' => true,
-                'points_awarded' => $inserted ? $question['points'] : 0,
+                'points_awarded' => $inserted ? min($question['points'], 100 - $earnedToday) : 0,
                 'already_completed' => !$inserted,
             ];
         });

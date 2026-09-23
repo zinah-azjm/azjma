@@ -7,12 +7,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/recover', [AuthController::class, 'recover']);
 Route::get('/family/{code}/children', [AuthController::class, 'familyChildren']);
 Route::post('/pin-login', [AuthController::class, 'pinLogin']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/recovery-code', [AuthController::class, 'regenerateRecoveryCode']);
     Route::get('/children', [QuestController::class, 'children']);
     Route::post('/children', [QuestController::class, 'createChild']);
     Route::put('/children/{id}', [QuestController::class, 'updateChild']);
@@ -21,6 +23,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/parents', [QuestController::class, 'createParent']);
     Route::get('/tasks', [QuestController::class, 'tasks']);
     Route::post('/tasks', [QuestController::class, 'createTask']);
+    Route::put('/tasks/{id}', [QuestController::class, 'updateTask']);
     Route::delete('/tasks/{id}', [QuestController::class, 'deleteTask']);
     Route::post('/tasks/{id}/submit', [QuestController::class, 'submitTask']);
     Route::post('/tasks/{id}/approve', [QuestController::class, 'approveTask']);
@@ -30,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/games', [QuestController::class, 'games']);
     Route::post('/games/answer', [QuestController::class, 'answerGame']);
     Route::get('/progress', [QuestController::class, 'progress']);
+    Route::get('/points/history/{childId}', [QuestController::class, 'pointsHistory']);
     Route::get('/rewards', [QuestController::class, 'rewards']);
     Route::post('/rewards', [QuestController::class, 'createReward']);
     Route::post('/rewards/{id}/request', [QuestController::class, 'requestReward']);
