@@ -326,6 +326,36 @@ class QuestController extends Controller
         });
     }
 
+    public function completeTaskByParent(Request $request, int $id)
+    {
+        $this->parent($request);
+        return DB::transaction(function () use ($request, $id) {
+            $task = DB::table('family_tasks')->where('id', $id)
+                ->where('family_id', $request->user()->family_id)
+                ->lockForUpdate()->first();
+            abort_unless($task && in_array($task->status, ['open', 'pending'], true), 404);
+
+            DB::table('family_tasks')->where('id', $id)->update([
+                'status' => 'approved', 'updated_at' => now(),
+            ]);
+            $this->addPoints(
+                $task->child_id,
+                $request->user()->family_id,
+                $task->points,
+                'task',
+                'أكملها ولي الأمر: '.$task->title,
+                'task_'.$task->id,
+            );
+            DB::table('app_notifications')->insert([
+                'user_id' => $task->child_id,
+                'title' => 'أحسنت! اكتملت مهمتك 🎉',
+                'body' => 'أضاف لك ولي الأمر '.$task->points.' نقطة',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            return DB::table('family_tasks')->find($id);
+        });
+    }
+
     public function pointsHistory(Request $request, int $childId)
     {
         $child = User::whereKey($childId)->where('family_id', $request->user()->family_id)

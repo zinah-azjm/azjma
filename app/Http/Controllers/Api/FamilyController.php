@@ -34,6 +34,23 @@ class FamilyController extends Controller
         ];
     }
 
+    public function settings(Request $request)
+    {
+        return DB::table('families')->where('id', $request->user()->family_id)
+            ->first(['task_completion_mode']);
+    }
+
+    public function updateSettings(Request $request)
+    {
+        $this->parent($request);
+        $data = $request->validate([
+            'task_completion_mode' => ['required', 'in:child,parent'],
+        ]);
+        DB::table('families')->where('id', $request->user()->family_id)
+            ->update($data + ['updated_at' => now()]);
+        return $data;
+    }
+
     public function addShopping(Request $request)
     {
         $data = $request->validate(['title' => ['required', 'string', 'max:150']]);
