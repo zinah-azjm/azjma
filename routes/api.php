@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/tasks/{id}', [QuestController::class, 'deleteTask']);
     Route::post('/tasks/{id}/submit', [QuestController::class, 'submitTask']);
     Route::post('/tasks/{id}/approve', [QuestController::class, 'approveTask']);
+    Route::post('/tasks/{id}/complete-by-parent', [QuestController::class, 'completeTaskByParent']);
     Route::post('/tasks/{id}/reject', [QuestController::class, 'rejectTask']);
     Route::get('/quiz', [QuestController::class, 'quiz']);
     Route::post('/quiz/answer', [QuestController::class, 'answerQuiz']);
@@ -40,6 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reward-requests', [QuestController::class, 'rewardRequests']);
     Route::post('/reward-requests/{id}/approve', [QuestController::class, 'approveReward']);
     Route::get('/family-dashboard', [FamilyController::class, 'dashboard']);
+    Route::get('/family-settings', [FamilyController::class, 'settings']);
+    Route::put('/family-settings', [FamilyController::class, 'updateSettings']);
     Route::post('/shopping', [FamilyController::class, 'addShopping']);
     Route::post('/shopping/{id}/toggle', [FamilyController::class, 'toggleShopping']);
     Route::delete('/shopping/{id}', [FamilyController::class, 'deleteShopping']);
